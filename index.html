@@ -67,8 +67,14 @@ function getISOWeek(date) {
 const now = new Date();
 const currentWeek = getISOWeek(now);
 
-fetch(`https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX45MJDHU0E4C5}&results=8000`)
-.then(res => res.json())
+// Thingspeak CORS proxy
+const url = `https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX45MJDHU0E4C5}&results=8000`;
+
+fetch(url)
+.then(res => {
+  if (!res.ok) throw new Error("Gagal fetch data Thingspeak");
+  return res.json();
+})
 .then(data => {
 
   let weeklyIncome = {};
@@ -77,6 +83,8 @@ fetch(`https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX4
   let weeklyTotal = 0;
   let monthlyIncome = 0;
 
+  const startWeek = Math.max(1, currentWeek - 3);
+
   data.feeds.forEach(feed => {
     if (!feed.field1) return;
 
@@ -84,7 +92,7 @@ fetch(`https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX4
     const week = getISOWeek(date);
 
     const jenis = Number(feed.field1);
-    const qty = feed.field2 ? Number(feed.field2) : 1;
+    const qty = feed.field2 && !isNaN(feed.field2) ? Number(feed.field2) : 1;
 
     const nama = rokokMap[jenis];
     const harga = hargaMap[jenis];
@@ -95,19 +103,22 @@ fetch(`https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX4
       weeklyTotal += qty * harga;
     }
 
-    if (week >= currentWeek - 3 && week <= currentWeek) {
+    if (week >= startWeek && week <= currentWeek) {
       weeklyIncome[week] = (weeklyIncome[week] || 0) + qty * harga;
       monthlyQty[nama] = (monthlyQty[nama] || 0) + qty;
       monthlyIncome += qty * harga;
     }
   });
 
+  // Update weekly income
   document.getElementById("weeklyIncome").innerHTML =
     `Total Penghasilan Minggu Ini: <b>Rp ${weeklyTotal.toLocaleString("id-ID")}</b>`;
 
+  // Jika tidak ada data
   if (Object.keys(monthlyQty).length === 0) {
     document.getElementById("ranking").innerHTML = "<i>Belum ada data</i>";
     document.getElementById("statement").innerHTML = "Belum ada data analisa.";
+    document.getElementById("pieDetail").innerHTML = "<i>Belum ada data minggu ini</i>";
     return;
   }
 
@@ -115,6 +126,13 @@ fetch(`https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX4
   renderWeeklyChart(weeklyIncome);
   renderRanking(monthlyQty);
   renderStatement(monthlyIncome, monthlyQty);
+})
+.catch(err => {
+  console.error(err);
+  document.getElementById("weeklyIncome").innerHTML = "Gagal mengambil data.";
+  document.getElementById("pieDetail").innerHTML = "<i>Gagal fetch data</i>";
+  document.getElementById("ranking").innerHTML = "<i>Gagal fetch data</i>";
+  document.getElementById("statement").innerHTML = "<i>Gagal fetch data</i>";
 });
 
 function renderPieChart(data) {
@@ -161,8 +179,9 @@ function renderRanking(data) {
 
   sorted.forEach((d,i) => {
     const kode = Object.keys(rokokMap).find(k => rokokMap[k] === d[0]);
+
     if (i < 2) {
-      html += `<p><b>${d[1]} pcs - ${d[0]} (${kode}) : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
+      html += `<p><b>${d[1]} pcs - ${d[0]} : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
     } else {
       html += `<p>${d[1]} pcs - ${d[0]}</p>`;
     }
