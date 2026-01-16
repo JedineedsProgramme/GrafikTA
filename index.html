@@ -232,8 +232,9 @@ fetch(url)
   // =========================
   // Penjualan 4 Minggu Terakhir
   // =========================
-  const weeks = Object.keys(weeklyIncome).map(Number).sort((a,b)=>a-b);
-  const labels = weeks.map(w => w === currentWeek ? "Minggu ini" : `Minggu ${currentWeek-w}`);
+  const weeks = Object.keys(weeklyIncome).map(Number).sort((a,b)=>a-b); // urut dari lama ke baru
+  const labels = weeks.map(w => w === currentWeek ? "Minggu ini" : `Minggu ${w}`); 
+  
   new Chart(document.getElementById("weeklyChart"), {
     type: "bar",
     data: {
@@ -259,3 +260,4 @@ fetch(url)
 
 </body>
 </html>
+
