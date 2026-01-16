@@ -162,7 +162,7 @@ function renderRanking(data) {
   sorted.forEach((d,i) => {
     const kode = Object.keys(rokokMap).find(k => rokokMap[k] === d[0]);
     if (i < 2) {
-      html += `<p><b>${d[1]} pcs - ${d[0]} (${kode}) : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
+      html += `<p><b>${d[1]} pcs - ${d[0]} : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
     } else {
       html += `<p>${d[1]} pcs - ${d[0]}</p>`;
     }
@@ -175,10 +175,11 @@ function renderStatement(total, data) {
   const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
   document.getElementById("statement").innerHTML =
     `Penjualan bulan ini Rp ${total.toLocaleString("id-ID")}. 
-     Prioritaskan stok ${sorted[0][0]} dan ${sorted[1][0]}.`;
+     Prioritaskan stok ${sorted[0][0]} dan ${sorted[1][0]} pada penjualan kedepannya.`;
 }
 </script>
 
 </body>
 </html>
+
 
