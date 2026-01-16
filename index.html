@@ -10,34 +10,49 @@
   h1 { text-align: center; margin-bottom: 5px; }
   h2 { text-align: center; margin-top: 0; color: #2e7d32; }
   .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .card { background: #ffffff; padding: 15px; border-radius: 10px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .card { background: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
   canvas { max-height: 300px; }
   .text-center { text-align: center; }
   .ranking p { margin: 5px 0; }
-  .statement { font-weight: bold; background: #e8f5e9;
-               padding: 10px; border-radius: 8px; }
+  .statement { font-weight: bold; background: #e8f5e9; padding: 10px; border-radius: 8px; }
 </style>
 </head>
 
 <body>
 
-<h1>Dashboard Penjualan Rokok (Minggu Ini)</h1>
+<h1>Dashboard Penjualan Rokok</h1>
 <h2 id="weeklyIncome">Total Penghasilan Minggu Ini: Rp 0</h2>
 
 <div class="dashboard">
 
+  <!-- 1. Bar chart total penjualan hari ini -->
   <div class="card">
-    <h3 class="text-center">Perbandingan Jenis Rokok Terjual</h3>
+    <h3 class="text-center">Total Penjualan Hari Ini</h3>
+    <canvas id="todayChart"></canvas>
+    <div id="todayDetail" class="text-center"></div>
+  </div>
+
+  <!-- 2. Pie chart perbandingan jenis rokok minggu ini -->
+  <div class="card">
+    <h3 class="text-center">Perbandingan Jenis Rokok Terjual (Minggu Ini)</h3>
     <canvas id="pieChart"></canvas>
     <div id="pieDetail" class="text-center"></div>
   </div>
 
+  <!-- 3. Bar chart penjualan 4 minggu terakhir -->
   <div class="card">
     <h3 class="text-center">Penjualan 4 Minggu Terakhir</h3>
     <canvas id="weeklyChart"></canvas>
   </div>
 
+  <!-- 4. Bar chart user paling aktif -->
+  <div class="card">
+    <h3 class="text-center">User Paling Aktif (Selain 1111)</h3>
+    <canvas id="userChart"></canvas>
+    <div id="userDetail" class="text-center"></div>
+  </div>
+
+  <!-- 5. Ranking & statement -->
   <div class="card ranking">
     <h3>Ranking Rokok Terjual (Bulan Ini)</h3>
     <div id="ranking"></div>
@@ -67,7 +82,6 @@ function getISOWeek(date) {
 const now = new Date();
 const currentWeek = getISOWeek(now);
 
-// Thingspeak CORS proxy
 const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${API_KEY}&results=8000`;
 
 fetch(url)
@@ -77,127 +91,177 @@ fetch(url)
 })
 .then(data => {
 
+  // =========================
+  // Variabel utama
+  // =========================
   let weeklyIncome = {};
-  let pieQty = {};
   let monthlyQty = {};
-  let weeklyTotal = 0;
   let monthlyIncome = 0;
 
+  let pieQty = {};
+  let weeklyTotal = 0;
+
+  let todayQty = {};
+  let userAccess = {};
+
+  const todayStr = now.toISOString().split("T")[0];
   const startWeek = Math.max(1, currentWeek - 3);
 
   data.feeds.forEach(feed => {
     if (!feed.field1) return;
 
-    const date = new Date(feed.created_at);
-    const week = getISOWeek(date);
-
     const jenis = Number(feed.field1);
     const qty = feed.field2 && !isNaN(feed.field2) ? Number(feed.field2) : 1;
+    const user = feed.field3;
+    const date = new Date(feed.created_at);
+    const week = getISOWeek(date);
+    const dateStr = date.toISOString().split("T")[0];
 
     const nama = rokokMap[jenis];
     const harga = hargaMap[jenis];
     if (!nama) return;
 
+    // 1️⃣ Total penjualan hari ini
+    if (dateStr === todayStr) todayQty[nama] = (todayQty[nama] || 0) + qty;
+
+    // 2️⃣ Pie chart minggu ini
     if (week === currentWeek) {
       pieQty[nama] = (pieQty[nama] || 0) + qty;
       weeklyTotal += qty * harga;
     }
 
+    // 3️⃣ Penjualan 4 minggu terakhir
     if (week >= startWeek && week <= currentWeek) {
       weeklyIncome[week] = (weeklyIncome[week] || 0) + qty * harga;
       monthlyQty[nama] = (monthlyQty[nama] || 0) + qty;
       monthlyIncome += qty * harga;
     }
-  });
 
-  // Update weekly income
-  document.getElementById("weeklyIncome").innerHTML =
-    `Total Penghasilan Minggu Ini: <b>Rp ${weeklyTotal.toLocaleString("id-ID")}</b>`;
-
-  // Jika tidak ada data
-  if (Object.keys(monthlyQty).length === 0) {
-    document.getElementById("ranking").innerHTML = "<i>Belum ada data</i>";
-    document.getElementById("statement").innerHTML = "Belum ada data analisa.";
-    document.getElementById("pieDetail").innerHTML = "<i>Belum ada data minggu ini</i>";
-    return;
-  }
-
-  renderPieChart(pieQty);
-  renderWeeklyChart(weeklyIncome);
-  renderRanking(monthlyQty);
-  renderStatement(monthlyIncome, monthlyQty);
-})
-.catch(err => {
-  console.error(err);
-  document.getElementById("weeklyIncome").innerHTML = "Gagal mengambil data.";
-  document.getElementById("pieDetail").innerHTML = "<i>Gagal fetch data</i>";
-  document.getElementById("ranking").innerHTML = "<i>Gagal fetch data</i>";
-  document.getElementById("statement").innerHTML = "<i>Gagal fetch data</i>";
-});
-
-function renderPieChart(data) {
-  if (Object.keys(data).length === 0) {
-    document.getElementById("pieDetail").innerHTML = "<i>Belum ada data minggu ini</i>";
-    return;
-  }
-
-  new Chart(document.getElementById("pieChart"), {
-    type: "pie",
-    data: {
-      labels: Object.keys(data),
-      datasets: [{
-        data: Object.values(data),
-        backgroundColor: ["#4CAF50","#2196F3","#FFC107","#E91E63"]
-      }]
+    // 4️⃣ User paling aktif (kecuali 1111)
+    if (user && user !== "1111") {
+      userAccess[user] = (userAccess[user] || 0) + 1;
     }
   });
 
-  document.getElementById("pieDetail").innerHTML =
-    Object.entries(data).map(d => `${d[0]}: ${d[1]} pcs`).join(" | ");
-}
+  // =========================
+  // Update total penghasilan minggu ini
+  // =========================
+  document.getElementById("weeklyIncome").innerHTML =
+    `Total Penghasilan Minggu Ini: <b>Rp ${weeklyTotal.toLocaleString("id-ID")}</b>`;
 
-function renderWeeklyChart(data) {
-  const weeks = Object.keys(data).map(Number).sort((a,b)=>a-b);
+  // =========================
+  // Render chart 1: Penjualan Hari Ini
+  // =========================
+  if (Object.keys(todayQty).length > 0) {
+    new Chart(document.getElementById("todayChart"), {
+      type: "bar",
+      data: {
+        labels: Object.keys(todayQty),
+        datasets: [{
+          label: "Jumlah Terjual (pcs)",
+          data: Object.values(todayQty),
+          backgroundColor: ["#4CAF50","#2196F3","#FFC107","#E91E63"]
+        }]
+      },
+      options: { responsive: true }
+    });
+    document.getElementById("todayDetail").innerHTML =
+      Object.entries(todayQty).map(d => `${d[0]}: ${d[1]} pcs`).join(" | ");
+  } else {
+    document.getElementById("todayDetail").innerHTML = "<i>Belum ada penjualan hari ini</i>";
+  }
+
+  // =========================
+  // Render chart 2: Pie Chart Minggu Ini
+  // =========================
+  if (Object.keys(pieQty).length > 0) {
+    new Chart(document.getElementById("pieChart"), {
+      type: "pie",
+      data: {
+        labels: Object.keys(pieQty),
+        datasets: [{
+          data: Object.values(pieQty),
+          backgroundColor: ["#4CAF50","#2196F3","#FFC107","#E91E63"]
+        }]
+      }
+    });
+    document.getElementById("pieDetail").innerHTML =
+      Object.entries(pieQty).map(d => `${d[0]}: ${d[1]} pcs`).join(" | ");
+  } else {
+    document.getElementById("pieDetail").innerHTML = "<i>Belum ada data minggu ini</i>";
+  }
+
+  // =========================
+  // Render chart 3: Penjualan 4 Minggu Terakhir
+  // =========================
+  const weeks = Object.keys(weeklyIncome).map(Number).sort((a,b)=>a-b);
   const labels = weeks.map(w => w === currentWeek ? "Minggu ini" : `Minggu ${currentWeek-w}`);
-
   new Chart(document.getElementById("weeklyChart"), {
     type: "bar",
     data: {
       labels,
       datasets: [{
         label: "Penjualan (Rp)",
-        data: weeks.map(w => data[w]),
+        data: weeks.map(w => weeklyIncome[w]),
         backgroundColor: "#673AB7"
       }]
     }
   });
-}
 
-function renderRanking(data) {
-  const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
-  let html = "";
+  // =========================
+  // Render chart 4: User Paling Aktif
+  // =========================
+  const sortedUsers = Object.entries(userAccess).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  if (sortedUsers.length > 0) {
+    new Chart(document.getElementById("userChart"), {
+      type: "bar",
+      data: {
+        labels: sortedUsers.map(u => u[0]),
+        datasets: [{
+          label: "Jumlah Akses",
+          data: sortedUsers.map(u => u[1]),
+          backgroundColor: "#FF5722"
+        }]
+      }
+    });
+    document.getElementById("userDetail").innerHTML =
+      sortedUsers.map(u => `${u[0]}: ${u[1]} kali`).join(" | ");
+  } else {
+    document.getElementById("userDetail").innerHTML = "<i>Belum ada akses user</i>";
+  }
 
-  sorted.forEach((d,i) => {
+  // =========================
+  // Render ranking & statement (5)
+  // =========================
+  const sortedMonthly = Object.entries(monthlyQty).sort((a,b)=>b[1]-a[1]);
+  let rankingHtml = "";
+  sortedMonthly.forEach((d,i) => {
     const kode = Object.keys(rokokMap).find(k => rokokMap[k] === d[0]);
-
     if (i < 2) {
-      html += `<p><b>${d[1]} pcs - ${d[0]} : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
+      rankingHtml += `<p><b>${d[1]} pcs - ${d[0]} : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
     } else {
-      html += `<p>${d[1]} pcs - ${d[0]}</p>`;
+      rankingHtml += `<p>${d[1]} pcs - ${d[0]}</p>`;
     }
   });
+  document.getElementById("ranking").innerHTML = rankingHtml;
 
-  document.getElementById("ranking").innerHTML = html;
-}
-
-function renderStatement(total, data) {
-  const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
   document.getElementById("statement").innerHTML =
-    `Penjualan bulan ini Rp ${total.toLocaleString("id-ID")}. 
-     Prioritaskan stok ${sorted[0][0]} dan ${sorted[1][0]}.`;
-}
+    monthlyIncome > 0 ?
+    `Penjualan bulan ini Rp ${monthlyIncome.toLocaleString("id-ID")}. Prioritaskan stok ${sortedMonthly[0][0]} dan ${sortedMonthly[1][0]}.` :
+    "Belum ada data analisa.";
+})
+.catch(err => {
+  console.error(err);
+  document.getElementById("weeklyIncome").innerHTML = "Gagal mengambil data.";
+  document.getElementById("todayDetail").innerHTML = "<i>Gagal fetch data</i>";
+  document.getElementById("pieDetail").innerHTML = "<i>Gagal fetch data</i>";
+  document.getElementById("userDetail").innerHTML = "<i>Gagal fetch data</i>";
+  document.getElementById("ranking").innerHTML = "<i>Gagal fetch data</i>";
+  document.getElementById("statement").innerHTML = "<i>Gagal fetch data</i>";
+});
 </script>
 
 </body>
 </html>
+
 
