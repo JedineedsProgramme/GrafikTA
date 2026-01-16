@@ -67,7 +67,7 @@ function getISOWeek(date) {
 const now = new Date();
 const currentWeek = getISOWeek(now);
 
-fetch(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${API_KEY}&results=8000`)
+fetch(`https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX45MJDHU0E4C5}&results=8000`)
 .then(res => res.json())
 .then(data => {
 
@@ -181,3 +181,4 @@ function renderStatement(total, data) {
 
 </body>
 </html>
+
