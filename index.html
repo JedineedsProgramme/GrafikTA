@@ -1,93 +1,131 @@
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
-  <meta charset="UTF-8">
   <title>Dashboard Penjualan Rokok</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial; padding: 20px; }
-    canvas { max-width: 800px; margin-bottom: 50px; }
+    body { font-family: Arial; margin: 30px; }
+    canvas { max-width: 600px; margin-bottom: 40px; }
   </style>
 </head>
+
 <body>
 
-<h2>📊 Perbandingan Rokok Terjual</h2>
-<canvas id="rokokChart"></canvas>
+<h1>Dashboard Penjualan Rokok (Minggu Ini)</h1>
+<h2 id="totalIncome"></h2>
 
-<h2>💰 Penghasilan per Minggu</h2>
+<canvas id="qtyChart"></canvas>
 <canvas id="incomeChart"></canvas>
 
-<h2>📦 Jumlah Rokok Terjual per Minggu</h2>
-<canvas id="qtyChart"></canvas>
-
 <script>
-const CHANNEL_ID = "3212911";
-const READ_API_KEY = "1UFX45MJDHU0E4C5";
+const rokokMap = {
+  1: "OFO",
+  2: "HD",
+  3: "GP",
+  4: "SURYA12"
+};
 
-const API_URL = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${READ_API_KEY}&results=500`;
-
-// ===== Hitung Minggu =====
-function getWeek(dateStr) {
+const hargaMap = {
+  1: 12000,
+  2: 16000,
+  3: 22000,
+  4: 27000
+};
+function isThisWeek(dateStr) {
+  const now = new Date();
   const d = new Date(dateStr);
-  const oneJan = new Date(d.getFullYear(),0,1);
-  return Math.ceil((((d - oneJan) / 86400000) + oneJan.getDay()+1)/7);
+
+  const start = new Date(now);
+  start.setDate(now.getDate() - now.getDay());
+  start.setHours(0,0,0,0);
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+
+  return d >= start && d < end;
 }
+fetch("https://api.thingspeak.com/channels/3212911/feeds.json?results=8000")
+  .then(res => res.json())
+  .then(data => {
 
-fetch(API_URL)
-.then(res => res.json())
-.then(json => {
+    let qtyPerRokok = {};
+    let incomePerRokok = {};
+    let totalIncome = 0;
 
-  const data = json.feeds
-    .filter(f => f.field1 && f.field2 && f.field3)
-    .map(f => ({
-      waktu: f.created_at,
-      nama: f.field1,
-      qty: Number(f.field2),
-      penjualan: Number(f.field3)
-    }));
+    data.feeds.forEach(feed => {
 
-  // === Grafik 1: Perbandingan Rokok ===
-  const rokok = {};
-  data.forEach(d => {
-    rokok[d.nama] = (rokok[d.nama] || 0) + d.qty;
+      if (!isThisWeek(feed.created_at)) return;
+      if (!feed.field1 || !feed.field2) return;
+
+      const jenis = parseInt(feed.field1);
+      const qty = parseInt(feed.field2);
+
+      if (!rokokMap[jenis]) return;
+
+      const nama = rokokMap[jenis];
+      const harga = hargaMap[jenis];
+
+      if (!qtyPerRokok[nama]) qtyPerRokok[nama] = 0;
+      if (!incomePerRokok[nama]) incomePerRokok[nama] = 0;
+
+      qtyPerRokok[nama] += qty;
+      incomePerRokok[nama] += qty * harga;
+      totalIncome += qty * harga;
+    });
+
+    renderQtyChart(qtyPerRokok);
+    renderIncomeChart(incomePerRokok);
+    showTotalIncome(totalIncome);
   });
-
-  new Chart(rokokChart, {
+function renderQtyChart(data) {
+  new Chart(document.getElementById("qtyChart"), {
     type: "pie",
     data: {
-      labels: Object.keys(rokok),
-      datasets: [{ data: Object.values(rokok) }]
+      labels: Object.keys(data),
+      datasets: [{
+        data: Object.values(data),
+        backgroundColor: ["#4CAF50","#2196F3","#FFC107","#E91E63"]
+      }]
+    },
+    options: {
+      plugins: {
+        title: {
+          display: true,
+          text: "Perbandingan Rokok Terjual"
+        }
+      }
     }
   });
+}
 
-  // === Grafik Mingguan ===
-  const income = {};
-  const qtyWeek = {};
-
-  data.forEach(d => {
-    const w = "Minggu " + getWeek(d.waktu);
-    income[w] = (income[w] || 0) + d.penjualan;
-    qtyWeek[w] = (qtyWeek[w] || 0) + d.qty;
-  });
-
-  new Chart(incomeChart, {
+function renderIncomeChart(data) {
+  new Chart(document.getElementById("incomeChart"), {
     type: "bar",
     data: {
-      labels: Object.keys(income),
-      datasets: [{ label: "Pendapatan (Rp)", data: Object.values(income) }]
+      labels: Object.keys(data),
+      datasets: [{
+        label: "Penghasilan (Rp)",
+        data: Object.values(data),
+        backgroundColor: "#673AB7"
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          ticks: {
+            callback: v => "Rp " + v.toLocaleString("id-ID")
+          }
+        }
+      }
     }
   });
+}
 
-  new Chart(qtyChart, {
-    type: "bar",
-    data: {
-      labels: Object.keys(qtyWeek),
-      datasets: [{ label: "Qty Terjual", data: Object.values(qtyWeek) }]
-    }
-  });
-
-});
+function showTotalIncome(total) {
+  document.getElementById("totalIncome").innerHTML =
+    "Total Penghasilan Minggu Ini: <b>Rp " +
+    total.toLocaleString("id-ID") + "</b>";
+}
 </script>
-
 </body>
 </html>
