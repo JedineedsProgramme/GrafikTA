@@ -159,12 +159,23 @@ function renderRanking(data) {
   const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
   let html = "";
 
+  if (sorted.length === 0) {
+    document.getElementById("ranking").innerHTML = "<i>Belum ada data</i>";
+    return;
+  }
+
   sorted.forEach((d,i) => {
-    const kode = Object.keys(rokokMap).find(k => rokokMap[k] === d[0]);
-    if (i < 2) {
-      html += `<p><b>${d[1]} pcs - ${d[0]} : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
+    const nama = d[0];
+    const qty = d[1];
+
+    // ambil harga tanpa tampilkan kode
+    const kode = Object.keys(rokokMap).find(k => rokokMap[k] === nama);
+    const harga = hargaMap[kode];
+
+    if (i < 2 && harga) {
+      html += `<p><b>${qty} pcs - ${nama} : Rp ${harga.toLocaleString("id-ID")}</b></p>`;
     } else {
-      html += `<p>${d[1]} pcs - ${d[0]}</p>`;
+      html += `<p>${qty} pcs - ${nama}</p>`;
     }
   });
 
@@ -181,6 +192,7 @@ function renderStatement(total, data) {
 
 </body>
 </html>
+
 
 
 
