@@ -8,19 +8,20 @@
 <style>
   body { font-family: Arial, sans-serif; margin: 20px; background: #f5f7fa; }
   h1 { text-align: center; margin-bottom: 10px; }
-  
+
   .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-  .full-width { grid-column: 1 / -1; }
-  
+
   .card { background: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
   canvas { max-height: 300px; }
+
+  .full-width { grid-column: 1 / -1; }
 
   /* Penjualan Hari Ini */
   #todaySummary { 
     text-align: center; 
-    font-size: 24px; 
+    font-size: 26px; 
     font-weight: bold; 
-    padding: 30px; 
+    padding: 40px; 
     background: linear-gradient(135deg, #81C784, #66BB6A); 
     color: white; 
     border-radius: 12px;
@@ -28,7 +29,7 @@
   }
   #todaySummary span { font-size: 20px; display: block; margin-top: 10px; }
 
-  /* User & Ranking */
+  /* Kanan: User & Ranking */
   .right-column { display: flex; flex-direction: column; gap: 20px; }
   .right-column .card { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
 
@@ -52,20 +53,21 @@
 
 <h1>Dashboard Penjualan Rokok</h1>
 
-<!-- 1. Penjualan Hari Ini -->
+<!-- Baris 1: Penjualan Hari Ini -->
 <div class="card full-width">
   <div id="todaySummary">Memuat data...</div>
 </div>
 
-<!-- 2. Grid 2 kolom -->
+<!-- Baris 2: Grid 2 kolom -->
 <div class="dashboard">
-  <!-- Kiri: Penjualan 4 Minggu -->
+  <!-- Kiri: Pie Chart Minggu Ini -->
   <div class="card">
-    <h3 class="text-center">Penjualan 4 Minggu Terakhir</h3>
-    <canvas id="weeklyChart"></canvas>
+    <h3 class="text-center">Perbandingan Jenis Rokok Terjual (Minggu Ini)</h3>
+    <canvas id="pieChart"></canvas>
+    <div id="pieDetail" class="text-center"></div>
   </div>
 
-  <!-- Kanan: User Teraktif + Ranking -->
+  <!-- Kanan: User Teraktif + Ranking Rokok -->
   <div class="right-column">
     <div class="card">
       <h3 class="text-center">User Teraktif Bulan Ini</h3>
@@ -79,14 +81,13 @@
   </div>
 </div>
 
-<!-- 3. Statement Penjualan Bulan Ini -->
+<!-- Baris 3: Statement Penjualan Bulan Ini -->
 <div id="monthlyStatement">Memuat data...</div>
 
-<!-- 4. Pie Chart Minggu Ini (full-width) -->
+<!-- Baris 4: Penjualan 4 Minggu Terakhir -->
 <div class="card full-width">
-  <h3 class="text-center">Perbandingan Jenis Rokok Terjual (Minggu Ini)</h3>
-  <canvas id="pieChart"></canvas>
-  <div id="pieDetail" class="text-center"></div>
+  <h3 class="text-center">Penjualan 4 Minggu Terakhir</h3>
+  <canvas id="weeklyChart"></canvas>
 </div>
 
 <script>
@@ -139,7 +140,7 @@ fetch(url)
     const harga = hargaMap[jenis];
     if (!nama) return;
 
-    // Penjualan hari ini
+    // Penjualan Hari Ini
     if (dateStr === todayStr) {
       todayQty[nama] = (todayQty[nama] || 0) + qty;
       todayTotal += qty * harga;
@@ -151,7 +152,7 @@ fetch(url)
       weeklyTotal += qty * harga;
     }
 
-    // Penjualan 4 minggu terakhir
+    // Penjualan 4 minggu terakhir & bulan ini
     if (week >= startWeek && week <= currentWeek) {
       weeklyIncome[week] = (weeklyIncome[week] || 0) + qty * harga;
       monthlyQty[nama] = (monthlyQty[nama] || 0) + qty;
@@ -165,7 +166,7 @@ fetch(url)
   });
 
   // =========================
-  // Penjualan Hari Ini (teks besar & engaging)
+  // Penjualan Hari Ini
   // =========================
   if (Object.keys(todayQty).length > 0) {
     const detail = Object.entries(todayQty)
@@ -197,24 +198,7 @@ fetch(url)
   }
 
   // =========================
-  // Penjualan 4 Minggu Terakhir
-  // =========================
-  const weeks = Object.keys(weeklyIncome).map(Number).sort((a,b)=>a-b);
-  const labels = weeks.map(w => w === currentWeek ? "Minggu ini" : `Minggu ${currentWeek-w}`);
-  new Chart(document.getElementById("weeklyChart"), {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [{
-        label: "Penjualan (Rp)",
-        data: weeks.map(w => weeklyIncome[w]),
-        backgroundColor: "#673AB7"
-      }]
-    }
-  });
-
-  // =========================
-  // User Teraktif Bulan Ini (teks)
+  // User Teraktif Bulan Ini
   // =========================
   const sortedUsers = Object.entries(userAccess).sort((a,b)=>b[1]-a[1]);
   if (sortedUsers.length > 0) {
@@ -235,10 +219,32 @@ fetch(url)
   document.getElementById("ranking").innerHTML = rankingHtml;
 
   // =========================
-  // Penjualan Bulan Ini (statement bottom)
+  // Statement Penjualan Bulan Ini
   // =========================
-  document.getElementById("monthlyStatement").innerHTML =
-    `Penjualan bulan ini Rp ${monthlyIncome.toLocaleString("id-ID")}.`;
+  if (sortedMonthly.length >= 2) {
+    document.getElementById("monthlyStatement").innerHTML =
+      `Penjualan bulan ini Rp ${monthlyIncome.toLocaleString("id-ID")}. Prioritaskan stok ${sortedMonthly[0][0]} dan ${sortedMonthly[1][0]}.`;
+  } else {
+    document.getElementById("monthlyStatement").innerHTML =
+      `Penjualan bulan ini Rp ${monthlyIncome.toLocaleString("id-ID")}.`;
+  }
+
+  // =========================
+  // Penjualan 4 Minggu Terakhir
+  // =========================
+  const weeks = Object.keys(weeklyIncome).map(Number).sort((a,b)=>a-b);
+  const labels = weeks.map(w => w === currentWeek ? "Minggu ini" : `Minggu ${currentWeek-w}`);
+  new Chart(document.getElementById("weeklyChart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Penjualan (Rp)",
+        data: weeks.map(w => weeklyIncome[w]),
+        backgroundColor: "#673AB7"
+      }]
+    }
+  });
 
 })
 .catch(err => {
