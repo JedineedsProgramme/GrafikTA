@@ -65,7 +65,7 @@
 <div class="dashboard">
 
   <div class="card">
-    <h3 class="text-center">Perbandingan Jenis Rokok Terjual - Minggu ini</h3>
+    <h3 class="text-center">Perbandingan Jenis Rokok Terjual</h3>
     <canvas id="pieChart"></canvas>
     <div id="pieDetail" class="text-center"></div>
   </div>
@@ -211,12 +211,14 @@ function renderRanking(data) {
 
   let html = "";
 
-  sorted.slice(0,2).forEach(d => {
-    const harga = Object.values(rokokMap).includes(d[0])
-      ? hargaMap[Object.keys(rokokMap).find(k => rokokMap[k] === d[0])]
-      : 0;
-
-    html += `<p>${d[1]} pcs - ${d[0]} (Rp ${(d[1]*harga).toLocaleString("id-ID")})</p>`;
+  sorted.forEach((d, index) => {
+    if (index < 2) {
+      const key = Object.keys(rokokMap).find(k => rokokMap[k] === d[0]);
+      const harga = hargaMap[key];
+      html += `<p>${d[1]} pcs - ${d[0]} (Rp ${(d[1]*harga).toLocaleString("id-ID")})</p>`;
+    } else {
+      html += `<p>${d[1]} pcs - ${d[0]}</p>`;
+    }
   });
 
   document.getElementById("ranking").innerHTML = html;
@@ -233,4 +235,3 @@ function renderStatement(total, data) {
 
 </body>
 </html>
-
