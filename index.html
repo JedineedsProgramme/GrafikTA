@@ -35,23 +35,24 @@ canvas { max-height: 260px; }
 
 <body>
 
+
 <h1>Dashboard Penjualan Rokok (Minggu Ini)</h1>
-<h2 id="totalWeek">Total Penghasilan Minggu Ini: Rp 0</h2>
+<h2 id="weeklyIncome">Total Penghasilan Minggu Ini: Rp 0</h2>
 
-<div class="container">
+<div class="dashboard">
 
   <div class="card">
-    <h3 class="center">Perbandingan Rokok Terjual</h3>
+    <h3 class="text-center">Perbandingan Jenis Rokok Terjual</h3>
     <canvas id="pieChart"></canvas>
-    <div id="pieText" class="center"></div>
+    <div id="pieDetail" class="text-center"></div>
   </div>
 
   <div class="card">
-    <h3 class="center">Penjualan 4 Minggu Terakhir</h3>
-    <canvas id="weekChart"></canvas>
+    <h3 class="text-center">Penjualan 4 Minggu Terakhir</h3>
+    <canvas id="weeklyChart"></canvas>
   </div>
 
-  <div class="card rank">
+  <div class="card ranking">
     <h3>Ranking Rokok Terjual (Bulan Ini)</h3>
     <div id="ranking"></div>
   </div>
@@ -133,33 +134,62 @@ function renderPie(data){
   pieText.innerHTML=t;
 }
 
-function renderWeekChart(data){
-  const labels=Object.keys(data).map(w=>
-    parseInt(w)===thisWeek?"Minggu Ini":"Minggu "+w);
+function renderWeekChart(data) {
+  const weeks = Object.keys(data).map(Number).sort((a,b)=>a-b);
 
-  new Chart(weekChart,{
-    type:"bar",
-    data:{labels,
-    datasets:[{label:"Penjualan (Rp)",
-    data:Object.values(data),
-    backgroundColor:"#673AB7"}]},
-    options:{scales:{y:{ticks:{callback:v=>"Rp "+v.toLocaleString("id-ID")}}}}
-  });
-}
-
-function renderRank(data){
-  const s=Object.entries(data).sort((a,b)=>b[1]-a[1]);
-  let html="";
-  s.forEach((d,i)=>{
-    if(i<2){
-      const key=Object.keys(rokokMap).find(k=>rokokMap[k]===d[0]);
-      html+=`<p>${d[1]} pcs - ${d[0]} (Rp ${(d[1]*hargaMap[key]).toLocaleString("id-ID")})</p>`;
+  const labels = weeks.map(w => {
+    if (w === currentWeek) {
+      return "Minggu ini";
     } else {
-      html+=`<p>${d[1]} pcs - ${d[0]}</p>`;
+      return `Minggu ${currentWeek - w}`;
     }
   });
-  ranking.innerHTML=html;
+
+  new Chart(document.getElementById("weeklyChart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{
+        label: "Penjualan (Rp)",
+        data: weeks.map(w => data[w]),
+        backgroundColor: "#673AB7"
+      }]
+    },
+    options: {
+      scales: {
+        y: {
+          ticks: {
+            callback: v => "Rp " + v.toLocaleString("id-ID")
+          }
+        }
+      }
+    }
+  });
 }
+
+
+function renderRank(data) {
+  const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
+  let html = "";
+
+  sorted.forEach((d, index) => {
+    const nama = d[0];
+    const qty = d[1];
+
+    // cari kode rokok dari rokokMap
+    const kode = Object.keys(rokokMap).find(k => rokokMap[k] === nama);
+    const harga = hargaMap[kode];
+
+    if (index === 0 || index === 1) {
+      html += `<p><b>${qty} pcs - ${nama} (${kode}) : Rp ${harga.toLocaleString("id-ID")}</b></p>`;
+    } else {
+      html += `<p>${qty} pcs - ${nama}</p>`;
+    }
+  });
+
+  document.getElementById("ranking").innerHTML = html;
+}
+
 
 function renderStatement(total,data){
   const s=Object.entries(data).sort((a,b)=>b[1]-a[1]);
@@ -172,4 +202,5 @@ function renderStatement(total,data){
 
 </body>
 </html>
+
 
