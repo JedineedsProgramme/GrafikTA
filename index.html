@@ -7,59 +7,86 @@
 
 <style>
   body { font-family: Arial, sans-serif; margin: 20px; background: #f5f7fa; }
-  h1 { text-align: center; margin-bottom: 5px; }
-  h2 { text-align: center; margin-top: 0; color: #2e7d32; }
+  h1 { text-align: center; margin-bottom: 10px; }
+  
   .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .full-width { grid-column: 1 / -1; }
+  
   .card { background: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
   canvas { max-height: 300px; }
+
+  /* Penjualan Hari Ini */
+  #todaySummary { 
+    text-align: center; 
+    font-size: 24px; 
+    font-weight: bold; 
+    padding: 30px; 
+    background: linear-gradient(135deg, #81C784, #66BB6A); 
+    color: white; 
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  #todaySummary span { font-size: 20px; display: block; margin-top: 10px; }
+
+  /* User & Ranking */
+  .right-column { display: flex; flex-direction: column; gap: 20px; }
+  .right-column .card { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+  /* Statement Penjualan Bulan Ini */
+  #monthlyStatement { 
+    grid-column: 1 / -1; 
+    background: #E8F5E9; 
+    padding: 20px; 
+    text-align: center; 
+    font-weight: bold; 
+    border-radius: 10px; 
+    font-size: 20px;
+  }
+
   .text-center { text-align: center; }
   .ranking p { margin: 5px 0; }
-  .statement { font-weight: bold; background: #e8f5e9; padding: 10px; border-radius: 8px; }
 </style>
 </head>
 
 <body>
 
 <h1>Dashboard Penjualan Rokok</h1>
-<h2 id="weeklyIncome">Total Penghasilan Minggu Ini: Rp 0</h2>
 
+<!-- 1. Penjualan Hari Ini -->
+<div class="card full-width">
+  <div id="todaySummary">Memuat data...</div>
+</div>
+
+<!-- 2. Grid 2 kolom -->
 <div class="dashboard">
-
-  <!-- 1. Ringkasan Penjualan Hari Ini -->
-  <div class="card">
-    <h3 class="text-center">Penjualan Hari Ini</h3>
-    <div id="todaySummary" class="text-center">Memuat data...</div>
-  </div>
-
-  <!-- 2. Pie chart perbandingan jenis rokok minggu ini -->
-  <div class="card">
-    <h3 class="text-center">Perbandingan Jenis Rokok Terjual (Minggu Ini)</h3>
-    <canvas id="pieChart"></canvas>
-    <div id="pieDetail" class="text-center"></div>
-  </div>
-
-  <!-- 3. Bar chart penjualan 4 minggu terakhir -->
+  <!-- Kiri: Penjualan 4 Minggu -->
   <div class="card">
     <h3 class="text-center">Penjualan 4 Minggu Terakhir</h3>
     <canvas id="weeklyChart"></canvas>
   </div>
 
-  <!-- 4. User Teraktif Bulan Ini -->
-  <div class="card">
-    <h3 class="text-center">User Teraktif Bulan Ini</h3>
-    <div id="topUser" class="text-center">Memuat data...</div>
-  </div>
+  <!-- Kanan: User Teraktif + Ranking -->
+  <div class="right-column">
+    <div class="card">
+      <h3 class="text-center">User Teraktif Bulan Ini</h3>
+      <div id="topUser">Memuat data...</div>
+    </div>
 
-  <!-- 5. Ranking & Statement -->
-  <div class="card ranking">
-    <h3>Ranking Rokok Terjual (Bulan Ini)</h3>
-    <div id="ranking"></div>
+    <div class="card ranking">
+      <h3 class="text-center">Ranking Rokok Bulan Ini</h3>
+      <div id="ranking"></div>
+    </div>
   </div>
+</div>
 
-  <div class="card statement">
-    <div id="statement"></div>
-  </div>
+<!-- 3. Statement Penjualan Bulan Ini -->
+<div id="monthlyStatement">Memuat data...</div>
 
+<!-- 4. Pie Chart Minggu Ini (full-width) -->
+<div class="card full-width">
+  <h3 class="text-center">Perbandingan Jenis Rokok Terjual (Minggu Ini)</h3>
+  <canvas id="pieChart"></canvas>
+  <div id="pieDetail" class="text-center"></div>
 </div>
 
 <script>
@@ -112,51 +139,45 @@ fetch(url)
     const harga = hargaMap[jenis];
     if (!nama) return;
 
-    // 1. Penjualan Hari Ini
+    // Penjualan hari ini
     if (dateStr === todayStr) {
       todayQty[nama] = (todayQty[nama] || 0) + qty;
       todayTotal += qty * harga;
     }
 
-    // 2. Pie chart minggu ini
+    // Pie chart minggu ini
     if (week === currentWeek) {
       pieQty[nama] = (pieQty[nama] || 0) + qty;
       weeklyTotal += qty * harga;
     }
 
-    // 3. Penjualan 4 minggu terakhir
+    // Penjualan 4 minggu terakhir
     if (week >= startWeek && week <= currentWeek) {
       weeklyIncome[week] = (weeklyIncome[week] || 0) + qty * harga;
       monthlyQty[nama] = (monthlyQty[nama] || 0) + qty;
       monthlyIncome += qty * harga;
     }
 
-    // 4. User paling aktif (abaikan 1111)
+    // User paling aktif (abaikan 1111)
     if (user && user !== "1111") {
       userAccess[user] = (userAccess[user] || 0) + 1;
     }
   });
 
   // =========================
-  // Update total penghasilan minggu ini
-  // =========================
-  document.getElementById("weeklyIncome").innerHTML =
-    `Total Penghasilan Minggu Ini: <b>Rp ${weeklyTotal.toLocaleString("id-ID")}</b>`;
-
-  // =========================
-  // 1. Ringkasan Penjualan Hari Ini
+  // Penjualan Hari Ini (teks besar & engaging)
   // =========================
   if (Object.keys(todayQty).length > 0) {
     const detail = Object.entries(todayQty)
       .map(d => `${d[0]} = ${d[1]} pcs`).join(" | ");
     document.getElementById("todaySummary").innerHTML =
-      `Penjualan hari ini: Rp ${todayTotal.toLocaleString("id-ID")}<br>${detail}`;
+      `Penjualan hari ini: Rp ${todayTotal.toLocaleString("id-ID")}<span>${detail}</span>`;
   } else {
     document.getElementById("todaySummary").innerHTML = "Belum ada penjualan hari ini";
   }
 
   // =========================
-  // 2. Pie Chart Minggu Ini
+  // Pie Chart Minggu Ini
   // =========================
   if (Object.keys(pieQty).length > 0) {
     new Chart(document.getElementById("pieChart"), {
@@ -176,7 +197,7 @@ fetch(url)
   }
 
   // =========================
-  // 3. Penjualan 4 Minggu Terakhir
+  // Penjualan 4 Minggu Terakhir
   // =========================
   const weeks = Object.keys(weeklyIncome).map(Number).sort((a,b)=>a-b);
   const labels = weeks.map(w => w === currentWeek ? "Minggu ini" : `Minggu ${currentWeek-w}`);
@@ -193,7 +214,7 @@ fetch(url)
   });
 
   // =========================
-  // 4. User Teraktif Bulan Ini (Teks saja)
+  // User Teraktif Bulan Ini (teks)
   // =========================
   const sortedUsers = Object.entries(userAccess).sort((a,b)=>b[1]-a[1]);
   if (sortedUsers.length > 0) {
@@ -204,34 +225,29 @@ fetch(url)
   }
 
   // =========================
-  // 5. Ranking Rokok & Statement
+  // Ranking Rokok Bulan Ini
   // =========================
   const sortedMonthly = Object.entries(monthlyQty).sort((a,b)=>b[1]-a[1]);
   let rankingHtml = "";
   sortedMonthly.forEach((d,i) => {
-    const kode = Object.keys(rokokMap).find(k => rokokMap[k] === d[0]);
-    if (i < 2) {
-      rankingHtml += `<p><b>${d[1]} pcs - ${d[0]} : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
-    } else {
-      rankingHtml += `<p>${d[1]} pcs - ${d[0]}</p>`;
-    }
+    rankingHtml += `<p>${d[1]} pcs - ${d[0]}</p>`;
   });
   document.getElementById("ranking").innerHTML = rankingHtml;
 
-  document.getElementById("statement").innerHTML =
-    monthlyIncome > 0 ?
-    `Penjualan bulan ini Rp ${monthlyIncome.toLocaleString("id-ID")}. Prioritaskan stok ${sortedMonthly[0][0]} dan ${sortedMonthly[1][0]}.` :
-    "Belum ada data analisa.";
+  // =========================
+  // Penjualan Bulan Ini (statement bottom)
+  // =========================
+  document.getElementById("monthlyStatement").innerHTML =
+    `Penjualan bulan ini Rp ${monthlyIncome.toLocaleString("id-ID")}.`;
 
 })
 .catch(err => {
   console.error(err);
-  document.getElementById("weeklyIncome").innerHTML = "Gagal mengambil data.";
   document.getElementById("todaySummary").innerHTML = "<i>Gagal fetch data</i>";
   document.getElementById("pieDetail").innerHTML = "<i>Gagal fetch data</i>";
   document.getElementById("topUser").innerHTML = "<i>Gagal fetch data</i>";
   document.getElementById("ranking").innerHTML = "<i>Gagal fetch data</i>";
-  document.getElementById("statement").innerHTML = "<i>Gagal fetch data</i>";
+  document.getElementById("monthlyStatement").innerHTML = "<i>Gagal fetch data</i>";
 });
 </script>
 
