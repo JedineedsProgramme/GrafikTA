@@ -161,8 +161,9 @@ function renderRanking(data) {
 
   sorted.forEach((d,i) => {
     const kode = Object.keys(rokokMap).find(k => rokokMap[k] === d[0]);
+
     if (i < 2) {
-      html += `<p><b>${d[1]} pcs - ${d[0]} (${kode}) : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
+      html += `<p><b>${d[1]} pcs - ${d[0]} : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
     } else {
       html += `<p>${d[1]} pcs - ${d[0]}</p>`;
     }
