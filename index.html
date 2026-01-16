@@ -6,22 +6,36 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-  body { font-family: Arial, sans-serif; margin: 20px; background: #f5f7fa; }
+  body { font-family: Arial, sans-serif; margin: 20px; background: #f5f7fa; overflow-x: auto; }
   h1 { text-align: center; margin-bottom: 10px; }
 
-  .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  /* Grid Layout */
+  .dashboard { 
+    display: grid; 
+    grid-template-columns: repeat(2, minmax(300px, 1fr)); /* responsif kolom kiri & kanan */
+    gap: 20px; 
+  }
 
-  .card { background: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-  canvas { max-height: 300px; }
+  .card { 
+    background: #ffffff; 
+    padding: 15px; 
+    border-radius: 10px; 
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center;
+  }
+  canvas { width: 100% !important; max-height: 300px; }
 
+  /* Full width sections */
   .full-width { grid-column: 1 / -1; }
 
   /* Penjualan Hari Ini */
   #todaySummary { 
     text-align: center; 
-    font-size: 26px; 
+    font-size: 28px; 
     font-weight: bold; 
-    padding: 40px; 
+    padding: 50px; 
     background: linear-gradient(135deg, #81C784, #66BB6A); 
     color: white; 
     border-radius: 12px;
@@ -33,7 +47,7 @@
   .right-column { display: flex; flex-direction: column; gap: 20px; }
   .right-column .card { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
 
-  /* Statement Penjualan Bulan Ini */
+  /* Statement Bulanan */
   #monthlyStatement { 
     grid-column: 1 / -1; 
     background: #E8F5E9; 
@@ -81,7 +95,7 @@
   </div>
 </div>
 
-<!-- Baris 3: Statement Penjualan Bulan Ini -->
+<!-- Baris 3: Statement Penjualan Bulanan -->
 <div id="monthlyStatement">Memuat data...</div>
 
 <!-- Baris 4: Penjualan 4 Minggu Terakhir -->
@@ -233,8 +247,7 @@ fetch(url)
   // Penjualan 4 Minggu Terakhir
   // =========================
   const weeks = Object.keys(weeklyIncome).map(Number).sort((a,b)=>a-b); // urut dari lama ke baru
-  const labels = weeks.map(w => w === currentWeek ? "Minggu ini" : `Minggu ${w}`); 
-  
+  const labels = weeks.map(w => w === currentWeek ? "Minggu ini" : `Minggu ${w}`);
   new Chart(document.getElementById("weeklyChart"), {
     type: "bar",
     data: {
@@ -260,4 +273,3 @@ fetch(url)
 
 </body>
 </html>
-
