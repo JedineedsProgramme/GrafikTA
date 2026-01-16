@@ -67,7 +67,7 @@ function getISOWeek(date) {
 const now = new Date();
 const currentWeek = getISOWeek(now);
 
-fetch(`https://api.thingspeak.com/channels/3212911/feeds.json?api_key=1UFX45MJDHU0E4C5&results=8000`)
+fetch(`https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX45MJDHU0E4C5}&results=8000`)
 .then(res => res.json())
 .then(data => {
 
@@ -161,9 +161,8 @@ function renderRanking(data) {
 
   sorted.forEach((d,i) => {
     const kode = Object.keys(rokokMap).find(k => rokokMap[k] === d[0]);
-
     if (i < 2) {
-      html += `<p><b>${d[1]} pcs - ${d[0]} : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
+      html += `<p><b>${d[1]} pcs - ${d[0]} (${kode}) : Rp ${hargaMap[kode].toLocaleString("id-ID")}</b></p>`;
     } else {
       html += `<p>${d[1]} pcs - ${d[0]}</p>`;
     }
@@ -182,4 +181,3 @@ function renderStatement(total, data) {
 
 </body>
 </html>
-
