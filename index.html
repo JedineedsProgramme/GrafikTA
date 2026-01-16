@@ -184,14 +184,23 @@ function renderRanking(data) {
 
 function renderStatement(total, data) {
   const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
+
+  if (sorted.length < 2) {
+    document.getElementById("statement").innerHTML =
+      "Data penjualan belum cukup untuk analisis.";
+    return;
+  }
+
   document.getElementById("statement").innerHTML =
     `Penjualan bulan ini Rp ${total.toLocaleString("id-ID")}. 
-     Prioritaskan stok ${sorted[0][0]} dan ${sorted[1][0]} pada penjualan kedepannya.`;
+     Prioritaskan stok ${sorted[0][0]} dan ${sorted[1][0]} di penjualan kedepannya.`;
 }
+
 </script>
 
 </body>
 </html>
+
 
 
 
