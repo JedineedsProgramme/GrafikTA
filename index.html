@@ -44,7 +44,7 @@ function isThisWeek(dateStr) {
 
   return d >= start && d < end;
 }
-fetch("https://api.thingspeak.com/channels/3212911/feeds.json?results=8000")
+  fetch("https://api.thingspeak.com/channels/3212911/feeds.json?api_key=1UFX45MJDHU0E4C5&results=8000")
   .then(res => res.json())
   .then(data => {
 
@@ -129,3 +129,4 @@ function showTotalIncome(total) {
 </script>
 </body>
 </html>
+
