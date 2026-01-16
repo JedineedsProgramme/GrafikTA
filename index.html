@@ -6,76 +6,52 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    margin: 20px;
-    background: #f5f7fa;
-  }
-
-  h1 {
-    text-align: center;
-    margin-bottom: 5px;
-  }
-
-  h2 {
-    text-align: center;
-    margin-top: 0;
-    color: #2e7d32;
-  }
-
-  .dashboard {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-
-  .card {
-    background: #ffffff;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  }
-
-  canvas {
-    max-height: 300px;
-  }
-
-  .text-center {
-    text-align: center;
-  }
-
-  .ranking p {
-    margin: 6px 0;
-  }
-
-  .statement {
-    font-weight: bold;
-    background: #e8f5e9;
-    padding: 10px;
-    border-radius: 8px;
-  }
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  margin: 20px;
+}
+h1,h2 { text-align:center; }
+.container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.card {
+  background: #fff;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+canvas { max-height: 260px; }
+.rank p { margin: 5px 0; }
+.statement {
+  background:#e8f5e9;
+  font-weight:bold;
+}
+.center { text-align:center; }
 </style>
 </head>
 
 <body>
 
 <h1>Dashboard Penjualan Rokok (Minggu Ini)</h1>
-<h2 id="weeklyIncome">Total Penghasilan Minggu Ini: Rp 0</h2>
+<h2 id="totalWeek">Total Penghasilan Minggu Ini: Rp 0</h2>
 
-<div class="dashboard">
+<div class="container">
 
   <div class="card">
-    <h3 class="text-center">Perbandingan Jenis Rokok Terjual</h3>
+    <h3 class="center">Perbandingan Rokok Terjual</h3>
     <canvas id="pieChart"></canvas>
-    <div id="pieDetail" class="text-center"></div>
+    <div id="pieText" class="center"></div>
   </div>
 
   <div class="card">
-    <h3 class="text-center">Penjualan 4 Minggu Terakhir</h3>
-    <canvas id="weeklyChart"></canvas>
+    <h3 class="center">Penjualan 4 Minggu Terakhir</h3>
+    <canvas id="weekChart"></canvas>
   </div>
 
-  <div class="card ranking">
+  <div class="card rank">
     <h3>Ranking Rokok Terjual (Bulan Ini)</h3>
     <div id="ranking"></div>
   </div>
@@ -88,148 +64,109 @@
 
 <script>
 const API_KEY = "1UFX45MJDHU0E4C5";
-const CHANNEL_ID = 3212911;
+const CHANNEL = 3212911;
 
-const rokokMap = {
-  1: "OFO",
-  2: "HD",
-  3: "GP",
-  4: "SURYA12"
-};
+const rokokMap = {1:"OFO",2:"HD",3:"GP",4:"SURYA12"};
+const hargaMap = {1:12000,2:16000,3:22000,4:27000};
 
-const hargaMap = {
-  1: 12000,
-  2: 16000,
-  3: 22000,
-  4: 27000
-};
-
-function getISOWeek(date) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+function getWeekSimple(d){
+  const first = new Date(d.getFullYear(),0,1);
+  return Math.ceil((((d-first)/86400000)+first.getDay()+1)/7);
 }
 
 const now = new Date();
-const currentYear = now.getFullYear();
-const currentWeek = getISOWeek(now);
+const thisWeek = getWeekSimple(now);
+const thisYear = now.getFullYear();
 
-fetch(`https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX45MJDHU0E4C5}&results=8000`)
-.then(res => res.json())
-.then(data => {
+fetch(`https://api.thingspeak.com/channels/${CHANNEL}/feeds.json?api_key=${API_KEY}&results=8000`)
+.then(r=>r.json())
+.then(res=>{
 
-  let weeklyIncome = {};
-  let pieQty = {};
-  let monthlyQty = {};
-  let weeklyTotal = 0;
-  let monthlyIncome = 0;
+  let pieQty={}, weekIncome={}, monthQty={}, weekTotal=0, monthTotal=0;
 
-  data.feeds.forEach(feed => {
-    const date = new Date(feed.created_at);
-    const year = date.getFullYear();
-    const week = getISOWeek(date);
+  res.feeds.forEach(f=>{
+    if(!f.field1) return;
 
-    if (year !== currentYear) return;
+    const d = new Date(f.created_at);
+    if(d.getFullYear()!==thisYear) return;
 
-    const jenis = parseInt(feed.field1);
-    const qty = parseInt(feed.field2) || 1;
+    const w = getWeekSimple(d);
+    const jenis = parseInt(f.field1);
+    const qty = parseInt(f.field2)||1;
     const nama = rokokMap[jenis];
     const harga = hargaMap[jenis];
-    if (!nama) return;
+    if(!nama) return;
 
-    if (week === currentWeek) {
-      pieQty[nama] = (pieQty[nama] || 0) + qty;
-      weeklyTotal += qty * harga;
+    // Minggu ini
+    if(w===thisWeek){
+      pieQty[nama]=(pieQty[nama]||0)+qty;
+      weekTotal+=qty*harga;
     }
 
-    if (week >= currentWeek - 3 && week <= currentWeek) {
-      weeklyIncome[week] = (weeklyIncome[week] || 0) + qty * harga;
-      monthlyQty[nama] = (monthlyQty[nama] || 0) + qty;
-      monthlyIncome += qty * harga;
+    // 4 minggu terakhir
+    if(w>=thisWeek-3 && w<=thisWeek){
+      weekIncome[w]=(weekIncome[w]||0)+qty*harga;
+      monthQty[nama]=(monthQty[nama]||0)+qty;
+      monthTotal+=qty*harga;
     }
   });
 
-  document.getElementById("weeklyIncome").innerHTML =
-    `Total Penghasilan Minggu Ini: <b>Rp ${weeklyTotal.toLocaleString("id-ID")}</b>`;
+  document.getElementById("totalWeek").innerHTML=
+    `Total Penghasilan Minggu Ini: <b>Rp ${weekTotal.toLocaleString("id-ID")}</b>`;
 
-  renderPieChart(pieQty);
-  renderWeeklyChart(weeklyIncome);
-  renderRanking(monthlyQty);
-  renderStatement(monthlyIncome, monthlyQty);
+  renderPie(pieQty);
+  renderWeekChart(weekIncome);
+  renderRank(monthQty);
+  renderStatement(monthTotal,monthQty);
 });
 
-function renderPieChart(data) {
-  new Chart(document.getElementById("pieChart"), {
-    type: "pie",
-    data: {
-      labels: Object.keys(data),
-      datasets: [{
-        data: Object.values(data),
-        backgroundColor: ["#4CAF50","#2196F3","#FFC107","#E91E63"]
-      }]
-    }
+function renderPie(data){
+  new Chart(pieChart,{
+    type:"pie",
+    data:{labels:Object.keys(data),
+    datasets:[{data:Object.values(data),
+    backgroundColor:["#4CAF50","#2196F3","#FFC107","#E91E63"]}]}
   });
 
-  let detail = "";
-  Object.entries(data).forEach(d => {
-    detail += `${d[0]}: ${d[1]} pcs &nbsp;&nbsp;`;
-  });
-  document.getElementById("pieDetail").innerHTML = detail;
+  let t="";
+  for(let k in data) t+=`${k}: ${data[k]} pcs &nbsp;`;
+  pieText.innerHTML=t;
 }
 
-function renderWeeklyChart(data) {
-  const labels = Object.keys(data).map(w =>
-    parseInt(w) === currentWeek ? "Minggu Ini" : `Minggu ${w}`
-  );
+function renderWeekChart(data){
+  const labels=Object.keys(data).map(w=>
+    parseInt(w)===thisWeek?"Minggu Ini":"Minggu "+w);
 
-  new Chart(document.getElementById("weeklyChart"), {
-    type: "bar",
-    data: {
-      labels,
-      datasets: [{
-        label: "Penjualan (Rp)",
-        data: Object.values(data),
-        backgroundColor: "#673AB7"
-      }]
-    },
-    options: {
-      scales: {
-        y: {
-          ticks: {
-            callback: v => "Rp " + v.toLocaleString("id-ID")
-          }
-        }
-      }
-    }
+  new Chart(weekChart,{
+    type:"bar",
+    data:{labels,
+    datasets:[{label:"Penjualan (Rp)",
+    data:Object.values(data),
+    backgroundColor:"#673AB7"}]},
+    options:{scales:{y:{ticks:{callback:v=>"Rp "+v.toLocaleString("id-ID")}}}}
   });
 }
 
-function renderRanking(data) {
-  const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
-
-  let html = "";
-
-  sorted.forEach((d, index) => {
-    if (index < 2) {
-      const key = Object.keys(rokokMap).find(k => rokokMap[k] === d[0]);
-      const harga = hargaMap[key];
-      html += `<p>${d[1]} pcs - ${d[0]} (Rp ${(d[1]*harga).toLocaleString("id-ID")})</p>`;
+function renderRank(data){
+  const s=Object.entries(data).sort((a,b)=>b[1]-a[1]);
+  let html="";
+  s.forEach((d,i)=>{
+    if(i<2){
+      const key=Object.keys(rokokMap).find(k=>rokokMap[k]===d[0]);
+      html+=`<p>${d[1]} pcs - ${d[0]} (Rp ${(d[1]*hargaMap[key]).toLocaleString("id-ID")})</p>`;
     } else {
-      html += `<p>${d[1]} pcs - ${d[0]}</p>`;
+      html+=`<p>${d[1]} pcs - ${d[0]}</p>`;
     }
   });
-
-  document.getElementById("ranking").innerHTML = html;
+  ranking.innerHTML=html;
 }
 
-function renderStatement(total, data) {
-  const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
-
-  document.getElementById("statement").innerHTML =
+function renderStatement(total,data){
+  const s=Object.entries(data).sort((a,b)=>b[1]-a[1]);
+  if(s.length<2) return;
+  statement.innerHTML=
     `Penjualan anda bulan ini adalah Rp ${total.toLocaleString("id-ID")}. 
-     Mohon prioritaskan stok ${sorted[0][0]} dan ${sorted[1][0]} untuk penjualan kedepannya.`;
+     Mohon prioritaskan stok ${s[0][0]} dan ${s[1][0]} untuk penjualan kedepannya.`;
 }
 </script>
 
