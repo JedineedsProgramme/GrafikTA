@@ -36,10 +36,6 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
 
-  .full {
-    grid-column: span 2;
-  }
-
   canvas {
     max-height: 300px;
   }
@@ -49,7 +45,7 @@
   }
 
   .ranking p {
-    margin: 5px 0;
+    margin: 6px 0;
   }
 
   .statement {
@@ -68,26 +64,22 @@
 
 <div class="dashboard">
 
-  <!-- PIE CHART -->
   <div class="card">
-    <h3 class="text-center">Perbandingan Jenis Rokok Terjual</h3>
+    <h3 class="text-center">Perbandingan Jenis Rokok Terjual - Minggu ini</h3>
     <canvas id="pieChart"></canvas>
     <div id="pieDetail" class="text-center"></div>
   </div>
 
-  <!-- BAR CHART 4 WEEKS -->
   <div class="card">
     <h3 class="text-center">Penjualan 4 Minggu Terakhir</h3>
     <canvas id="weeklyChart"></canvas>
   </div>
 
-  <!-- RANKING -->
   <div class="card ranking">
     <h3>Ranking Rokok Terjual (Bulan Ini)</h3>
     <div id="ranking"></div>
   </div>
 
-  <!-- STATEMENT -->
   <div class="card statement">
     <div id="statement"></div>
   </div>
@@ -124,7 +116,7 @@ const now = new Date();
 const currentYear = now.getFullYear();
 const currentWeek = getISOWeek(now);
 
-fetch(`https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX45MJDHU0E4C5}&results=8000`)
+fetch(`https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${API_KEY}&results=8000`)
 .then(res => res.json())
 .then(data => {
 
@@ -147,13 +139,11 @@ fetch(`https://api.thingspeak.com/channels/${3212911}/feeds.json?api_key=${1UFX4
     const harga = hargaMap[jenis];
     if (!nama) return;
 
-    // Minggu ini
     if (week === currentWeek) {
       pieQty[nama] = (pieQty[nama] || 0) + qty;
       weeklyTotal += qty * harga;
     }
 
-    // 4 minggu terakhir
     if (week >= currentWeek - 3 && week <= currentWeek) {
       weeklyIncome[week] = (weeklyIncome[week] || 0) + qty * harga;
       monthlyQty[nama] = (monthlyQty[nama] || 0) + qty;
@@ -190,7 +180,10 @@ function renderPieChart(data) {
 }
 
 function renderWeeklyChart(data) {
-  const labels = Object.keys(data).map(w => `Minggu ${w}`);
+  const labels = Object.keys(data).map(w =>
+    parseInt(w) === currentWeek ? "Minggu Ini" : `Minggu ${w}`
+  );
+
   new Chart(document.getElementById("weeklyChart"), {
     type: "bar",
     data: {
@@ -215,15 +208,23 @@ function renderWeeklyChart(data) {
 
 function renderRanking(data) {
   const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
+
   let html = "";
-  sorted.forEach(d => {
-    html += `<p>${d[1]} pcs - ${d[0]}</p>`;
+
+  sorted.slice(0,2).forEach(d => {
+    const harga = Object.values(rokokMap).includes(d[0])
+      ? hargaMap[Object.keys(rokokMap).find(k => rokokMap[k] === d[0])]
+      : 0;
+
+    html += `<p>${d[1]} pcs - ${d[0]} (Rp ${(d[1]*harga).toLocaleString("id-ID")})</p>`;
   });
+
   document.getElementById("ranking").innerHTML = html;
 }
 
 function renderStatement(total, data) {
   const sorted = Object.entries(data).sort((a,b)=>b[1]-a[1]);
+
   document.getElementById("statement").innerHTML =
     `Penjualan anda bulan ini adalah Rp ${total.toLocaleString("id-ID")}. 
      Mohon prioritaskan stok ${sorted[0][0]} dan ${sorted[1][0]} untuk penjualan kedepannya.`;
@@ -232,4 +233,3 @@ function renderStatement(total, data) {
 
 </body>
 </html>
-
