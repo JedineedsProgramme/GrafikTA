@@ -25,11 +25,10 @@
 
 <div class="dashboard">
 
-  <!-- 1. Bar chart total penjualan hari ini -->
+  <!-- 1. Ringkasan Penjualan Hari Ini -->
   <div class="card">
-    <h3 class="text-center">Total Penjualan Hari Ini</h3>
-    <canvas id="todayChart"></canvas>
-    <div id="todayDetail" class="text-center"></div>
+    <h3 class="text-center">Penjualan Hari Ini</h3>
+    <div id="todaySummary" class="text-center">Memuat data...</div>
   </div>
 
   <!-- 2. Pie chart perbandingan jenis rokok minggu ini -->
@@ -45,14 +44,13 @@
     <canvas id="weeklyChart"></canvas>
   </div>
 
-  <!-- 4. Bar chart user paling aktif -->
+  <!-- 4. User Teraktif Bulan Ini -->
   <div class="card">
-    <h3 class="text-center">User Paling Aktif (Selain 1111)</h3>
-    <canvas id="userChart"></canvas>
-    <div id="userDetail" class="text-center"></div>
+    <h3 class="text-center">User Teraktif Bulan Ini</h3>
+    <div id="topUser" class="text-center">Memuat data...</div>
   </div>
 
-  <!-- 5. Ranking & statement -->
+  <!-- 5. Ranking & Statement -->
   <div class="card ranking">
     <h3>Ranking Rokok Terjual (Bulan Ini)</h3>
     <div id="ranking"></div>
@@ -81,27 +79,20 @@ function getISOWeek(date) {
 
 const now = new Date();
 const currentWeek = getISOWeek(now);
-
 const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds.json?api_key=${API_KEY}&results=8000`;
 
 fetch(url)
-.then(res => {
-  if (!res.ok) throw new Error("Gagal fetch data Thingspeak");
-  return res.json();
-})
+.then(res => res.json())
 .then(data => {
 
-  // =========================
-  // Variabel utama
-  // =========================
   let weeklyIncome = {};
   let monthlyQty = {};
   let monthlyIncome = 0;
-
   let pieQty = {};
   let weeklyTotal = 0;
 
   let todayQty = {};
+  let todayTotal = 0;
   let userAccess = {};
 
   const todayStr = now.toISOString().split("T")[0];
@@ -121,23 +112,26 @@ fetch(url)
     const harga = hargaMap[jenis];
     if (!nama) return;
 
-    // 1️⃣ Total penjualan hari ini
-    if (dateStr === todayStr) todayQty[nama] = (todayQty[nama] || 0) + qty;
+    // 1. Penjualan Hari Ini
+    if (dateStr === todayStr) {
+      todayQty[nama] = (todayQty[nama] || 0) + qty;
+      todayTotal += qty * harga;
+    }
 
-    // 2️⃣ Pie chart minggu ini
+    // 2. Pie chart minggu ini
     if (week === currentWeek) {
       pieQty[nama] = (pieQty[nama] || 0) + qty;
       weeklyTotal += qty * harga;
     }
 
-    // 3️⃣ Penjualan 4 minggu terakhir
+    // 3. Penjualan 4 minggu terakhir
     if (week >= startWeek && week <= currentWeek) {
       weeklyIncome[week] = (weeklyIncome[week] || 0) + qty * harga;
       monthlyQty[nama] = (monthlyQty[nama] || 0) + qty;
       monthlyIncome += qty * harga;
     }
 
-    // 4️⃣ User paling aktif (kecuali 1111)
+    // 4. User paling aktif (abaikan 1111)
     if (user && user !== "1111") {
       userAccess[user] = (userAccess[user] || 0) + 1;
     }
@@ -150,29 +144,19 @@ fetch(url)
     `Total Penghasilan Minggu Ini: <b>Rp ${weeklyTotal.toLocaleString("id-ID")}</b>`;
 
   // =========================
-  // Render chart 1: Penjualan Hari Ini
+  // 1. Ringkasan Penjualan Hari Ini
   // =========================
   if (Object.keys(todayQty).length > 0) {
-    new Chart(document.getElementById("todayChart"), {
-      type: "bar",
-      data: {
-        labels: Object.keys(todayQty),
-        datasets: [{
-          label: "Jumlah Terjual (pcs)",
-          data: Object.values(todayQty),
-          backgroundColor: ["#4CAF50","#2196F3","#FFC107","#E91E63"]
-        }]
-      },
-      options: { responsive: true }
-    });
-    document.getElementById("todayDetail").innerHTML =
-      Object.entries(todayQty).map(d => `${d[0]}: ${d[1]} pcs`).join(" | ");
+    const detail = Object.entries(todayQty)
+      .map(d => `${d[0]} = ${d[1]} pcs`).join(" | ");
+    document.getElementById("todaySummary").innerHTML =
+      `Penjualan hari ini: Rp ${todayTotal.toLocaleString("id-ID")}<br>${detail}`;
   } else {
-    document.getElementById("todayDetail").innerHTML = "<i>Belum ada penjualan hari ini</i>";
+    document.getElementById("todaySummary").innerHTML = "Belum ada penjualan hari ini";
   }
 
   // =========================
-  // Render chart 2: Pie Chart Minggu Ini
+  // 2. Pie Chart Minggu Ini
   // =========================
   if (Object.keys(pieQty).length > 0) {
     new Chart(document.getElementById("pieChart"), {
@@ -192,7 +176,7 @@ fetch(url)
   }
 
   // =========================
-  // Render chart 3: Penjualan 4 Minggu Terakhir
+  // 3. Penjualan 4 Minggu Terakhir
   // =========================
   const weeks = Object.keys(weeklyIncome).map(Number).sort((a,b)=>a-b);
   const labels = weeks.map(w => w === currentWeek ? "Minggu ini" : `Minggu ${currentWeek-w}`);
@@ -209,29 +193,18 @@ fetch(url)
   });
 
   // =========================
-  // Render chart 4: User Paling Aktif
+  // 4. User Teraktif Bulan Ini (Teks saja)
   // =========================
-  const sortedUsers = Object.entries(userAccess).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const sortedUsers = Object.entries(userAccess).sort((a,b)=>b[1]-a[1]);
   if (sortedUsers.length > 0) {
-    new Chart(document.getElementById("userChart"), {
-      type: "bar",
-      data: {
-        labels: sortedUsers.map(u => u[0]),
-        datasets: [{
-          label: "Jumlah Akses",
-          data: sortedUsers.map(u => u[1]),
-          backgroundColor: "#FF5722"
-        }]
-      }
-    });
-    document.getElementById("userDetail").innerHTML =
-      sortedUsers.map(u => `${u[0]}: ${u[1]} kali`).join(" | ");
+    document.getElementById("topUser").innerHTML =
+      `${sortedUsers[0][0]} - ${sortedUsers[0][1]} kali`;
   } else {
-    document.getElementById("userDetail").innerHTML = "<i>Belum ada akses user</i>";
+    document.getElementById("topUser").innerHTML = "Belum ada user aktif";
   }
 
   // =========================
-  // Render ranking & statement (5)
+  // 5. Ranking Rokok & Statement
   // =========================
   const sortedMonthly = Object.entries(monthlyQty).sort((a,b)=>b[1]-a[1]);
   let rankingHtml = "";
@@ -249,13 +222,14 @@ fetch(url)
     monthlyIncome > 0 ?
     `Penjualan bulan ini Rp ${monthlyIncome.toLocaleString("id-ID")}. Prioritaskan stok ${sortedMonthly[0][0]} dan ${sortedMonthly[1][0]}.` :
     "Belum ada data analisa.";
+
 })
 .catch(err => {
   console.error(err);
   document.getElementById("weeklyIncome").innerHTML = "Gagal mengambil data.";
-  document.getElementById("todayDetail").innerHTML = "<i>Gagal fetch data</i>";
+  document.getElementById("todaySummary").innerHTML = "<i>Gagal fetch data</i>";
   document.getElementById("pieDetail").innerHTML = "<i>Gagal fetch data</i>";
-  document.getElementById("userDetail").innerHTML = "<i>Gagal fetch data</i>";
+  document.getElementById("topUser").innerHTML = "<i>Gagal fetch data</i>";
   document.getElementById("ranking").innerHTML = "<i>Gagal fetch data</i>";
   document.getElementById("statement").innerHTML = "<i>Gagal fetch data</i>";
 });
@@ -263,5 +237,3 @@ fetch(url)
 
 </body>
 </html>
-
-
